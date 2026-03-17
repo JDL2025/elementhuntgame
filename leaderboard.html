@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Element Hunt — Leaderboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #050508;
+    --panel: #0d0d1a;
+    --border: #1a1a2e;
+    --neon-cyan: #00f5ff;
+    --neon-pink: #ff006e;
+    --neon-green: #39ff14;
+    --neon-yellow: #ffe600;
+    --neon-purple: #bf5fff;
+    --text: #e0e8ff;
+    --text-dim: #5a6080;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* Scanlines */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,245,255,0.015) 2px, rgba(0,245,255,0.015) 4px);
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* Grid */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: linear-gradient(rgba(0,245,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,245,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  #page { position: relative; z-index: 1; padding: 16px 12px 60px; }
+
+  /* ===== RETURN BUTTON — pinned top ===== */
+  #return-btn {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 5000;
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    padding: 10px 18px;
+    background: var(--panel);
+    color: var(--neon-cyan);
+    border: 2px solid var(--neon-cyan);
+    cursor: pointer;
+    text-transform: uppercase;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+    box-shadow: 0 0 14px rgba(0,245,255,0.3);
+    transition: all 0.2s;
+  }
+  #return-btn:hover {
+    background: rgba(0,245,255,0.1);
+    box-shadow: 0 0 28px rgba(0,245,255,0.5);
+  }
+
+  /* ===== HEADER ===== */
+  .lb-header {
+    text-align: center;
+    padding-top: 60px;
+    margin-bottom: 24px;
+  }
+  .lb-title {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(26px, 6vw, 52px);
+    font-weight: 900;
+    letter-spacing: 4px;
+    color: var(--neon-yellow);
+    text-shadow: 0 0 30px var(--neon-yellow);
+    margin-bottom: 6px;
+  }
+  .lb-subtitle {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  /* ===== THREE-COLUMN GRID ===== */
+  .lb-columns {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    max-width: 1200px;
+    margin: 0 auto;
+    align-items: start;
+  }
+
+  .lb-col {
+    display: flex;
+    flex-direction: column;
+    border: 2px solid;
+    position: relative;
+    overflow: hidden;
+    background: var(--panel);
+  }
+  .lb-col.easy   { border-color: var(--neon-green); }
+  .lb-col.normal { border-color: var(--neon-yellow); }
+  .lb-col.expert { border-color: #ff4444; }
+
+  .lb-col::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .lb-col.easy::before   { background: var(--neon-green);  box-shadow: 0 0 12px var(--neon-green); }
+  .lb-col.normal::before { background: var(--neon-yellow); box-shadow: 0 0 12px var(--neon-yellow); }
+  .lb-col.expert::before { background: #ff4444;            box-shadow: 0 0 12px #ff4444; }
+
+  .lb-col-header {
+    padding: 14px 12px 12px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .lb-col-title {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(12px, 2vw, 16px);
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .lb-col.easy   .lb-col-title { color: var(--neon-green);  text-shadow: 0 0 12px var(--neon-green); }
+  .lb-col.normal .lb-col-title { color: var(--neon-yellow); text-shadow: 0 0 12px var(--neon-yellow); }
+  .lb-col.expert .lb-col-title { color: #ff4444;            text-shadow: 0 0 12px #ff4444; }
+
+  /* Loading */
+  .lb-col-loading {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-align: center;
+    padding: 30px 8px;
+    text-transform: uppercase;
+    animation: lbPulse 1s ease-in-out infinite alternate;
+  }
+  .lb-col.easy   .lb-col-loading { color: var(--neon-green); }
+  .lb-col.normal .lb-col-loading { color: var(--neon-yellow); }
+  .lb-col.expert .lb-col-loading { color: #ff4444; }
+  @keyframes lbPulse { from { opacity: 0.3; } to { opacity: 1; } }
+
+  .lb-col-error {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--neon-pink);
+    padding: 24px 8px;
+    text-align: center;
+  }
+
+  .lb-col-empty {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    text-align: center;
+    padding: 30px 8px;
+    letter-spacing: 2px;
+  }
+
+  /* Rows */
+  .lb-row {
+    display: grid;
+    grid-template-columns: 30px 1fr auto auto;
+    gap: 4px;
+    align-items: center;
+    padding: 9px 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    transition: background 0.15s;
+  }
+  .lb-row:last-child { border-bottom: none; }
+  .lb-row:hover { background: rgba(255,255,255,0.03); }
+
+  .lb-row-rank {
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+    color: var(--text-dim);
+  }
+  .lb-row-rank.rank-1 { color: #ffd700; text-shadow: 0 0 10px #ffd700; }
+  .lb-row-rank.rank-2 { color: #c0c0c0; text-shadow: 0 0 10px #c0c0c0; }
+  .lb-row-rank.rank-3 { color: #cd7f32; text-shadow: 0 0 10px #cd7f32; }
+
+  .lb-row-name {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: clamp(12px, 1.8vw, 15px);
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .lb-row-score {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(10px, 1.4vw, 12px);
+    font-weight: 700;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .lb-col.easy   .lb-row-score { color: var(--neon-green); }
+  .lb-col.normal .lb-row-score { color: var(--neon-yellow); }
+  .lb-col.expert .lb-row-score { color: #ff4444; }
+
+  .lb-row-date {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: clamp(9px, 1.2vw, 11px);
+    color: var(--text-dim);
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  /* Responsive */
+  @media (max-width: 700px) {
+    .lb-columns { grid-template-columns: 1fr; }
+    .lb-header { padding-top: 70px; }
+  }
+</style>
+</head>
+<body>
+
+<a id="return-btn" href="index.html">← RETURN TO GAME</a>
+
+<div id="page">
+  <div class="lb-header">
+    <div class="lb-title">🏆 LEADERBOARD</div>
+    <div class="lb-subtitle">◈ Element Hunt — All-Time Top 100 ◈</div>
+  </div>
+
+  <div class="lb-columns">
+
+    <div class="lb-col easy">
+      <div class="lb-col-header">
+        <div class="lb-col-title">⚡ Easy</div>
+      </div>
+      <div class="lb-col-loading" id="lb-load-easy">◈ Loading ◈</div>
+      <div id="lb-rows-easy"></div>
+      <div class="lb-col-error" id="lb-err-easy" style="display:none">⚠ Could not load scores</div>
+    </div>
+
+    <div class="lb-col normal">
+      <div class="lb-col-header">
+        <div class="lb-col-title">🎯 Normal</div>
+      </div>
+      <div class="lb-col-loading" id="lb-load-normal">◈ Loading ◈</div>
+      <div id="lb-rows-normal"></div>
+      <div class="lb-col-error" id="lb-err-normal" style="display:none">⚠ Could not load scores</div>
+    </div>
+
+    <div class="lb-col expert">
+      <div class="lb-col-header">
+        <div class="lb-col-title">💀 Expert</div>
+      </div>
+      <div class="lb-col-loading" id="lb-load-expert">◈ Loading ◈</div>
+      <div id="lb-rows-expert"></div>
+      <div class="lb-col-error" id="lb-err-expert" style="display:none">⚠ Could not load scores</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwwsSauN-mbA9YBdqlkhJD55iizXmBgLqsHJ9CSvki44nLP-C2TAW77wIE271Pszy6mQQ/exec';
+const SECRET_KEY = 'elementhunt2025';
+
+function fetchColScores(mode) {
+  const url = `${APPS_SCRIPT_URL}?action=getScores&mode=${mode}&key=${SECRET_KEY}`;
+  fetch(url)
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById(`lb-load-${mode}`).style.display = 'none';
+      if (data.success) {
+        renderColScores(mode, data.scores || []);
+      } else {
+        document.getElementById(`lb-err-${mode}`).style.display = 'block';
+      }
+    })
+    .catch(() => {
+      document.getElementById(`lb-load-${mode}`).style.display = 'none';
+      document.getElementById(`lb-err-${mode}`).style.display = 'block';
+    });
+}
+
+function formatDate(raw) {
+  if (!raw) return '';
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return String(raw); // fallback if already formatted
+  const m = d.getUTCMonth() + 1;
+  const day = d.getUTCDate();
+  const y = d.getUTCFullYear();
+  return `${m}/${day}/${y}`;
+}
+
+function renderColScores(mode, scores) {
+  const container  = document.getElementById(`lb-rows-${mode}`);
+  const rankIcons  = { 1: '🥇', 2: '🥈', 3: '🥉' };
+
+  if (scores.length === 0) {
+    container.innerHTML = `<div class="lb-col-empty">No scores yet!<br>Be the first.</div>`;
+    return;
+  }
+
+  scores.forEach((row, i) => {
+    const rank        = i + 1;
+    const rankClass   = rank <= 3 ? `rank-${rank}` : '';
+    const rankDisplay = rankIcons[rank] || `#${rank}`;
+
+    const div = document.createElement('div');
+    div.className = 'lb-row';
+    div.innerHTML = `
+      <span class="lb-row-rank ${rankClass}">${rankDisplay}</span>
+      <span class="lb-row-name">${escapeHtml(String(row.name))}</span>
+      <span class="lb-row-date">${formatDate(row.date)}</span>
+      <span class="lb-row-score">${Number(row.score).toLocaleString()}</span>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function escapeHtml(str) {
+  return str.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// Load all three on page load
+['easy', 'normal', 'expert'].forEach(mode => fetchColScores(mode));
+</script>
+</body>
+</html>
